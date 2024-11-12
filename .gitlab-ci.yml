@@ -1,0 +1,28 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_REGISTRY: "registry.gitlab.com"
+  DOCKER_REGISTRY_REPO: "ash7934145/gitlab-kubernetes"
+  VERS: $CI_COMMIT_SHORT_SHA
+
+app-build:
+  image: gcr.io/kaniko-project/executor:debug
+  stage: build
+  script:
+    - echo "Building Docker image for version $VERS"
+    - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/Dockerfile" --destination $DOCKER_REGISTRY/$DOCKER_REGISTRY_REPO:$VERS
+  tags:
+    - gitlab-runner
+
+app-deploy:
+  image: gitlabkubtest/k8s-kubectl
+  stage: deploy
+  script:
+    - echo "Deploying version $VERS to Minikube"
+    - kubectl config use-context minikube
+    - sed -i "s/VERSION/${VERS}/g" deployment.yaml
+    - kubectl apply -f deployment.yaml
+  tags:
+    - gitlab-runner
